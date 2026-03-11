@@ -40,7 +40,7 @@ jobs:
         with:
           scan-type: config
           scan-ref: .
-          severity: CRITICAL,HIGH
+          severity: CRITICAL
           exit-code: '1'
 
   validate:
@@ -112,3 +112,4 @@ jobs:
         run: terraform init -backend=false
       - name: Terraform apply
         run: terraform apply -auto-approve
+

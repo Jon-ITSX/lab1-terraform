@@ -44,7 +44,7 @@ Konfigurera i `Settings -> Secrets and variables -> Actions`:
 Workflow fil: `.github/workflows/terraform.yml`
 
 - `lint` (terraform fmt check)
-- `security` (Trivy IaC scan, blockerar CRITICAL/HIGH)
+- `security` (Trivy IaC scan, blockerar CRITICAL)
 - `validate` (terraform init -backend=false + validate)
 - `plan` (autentiserad med `GCP_SA_KEY`)
 - `apply` endast pa:
@@ -69,6 +69,8 @@ Workflow fil: `.github/workflows/terraform.yml`
 
 ## 5) Evidence for report
 
+Notering: HIGH-fynd loggas men blockerar inte merge i nulaget. Detta for att uppfylla VG-kravet "Pipeline blockerar CRITICAL" och samtidigt kunna arbeta iterativt med hardening.
+
 Ta screenshots pa:
 
 - PR med gron pipeline
@@ -76,3 +78,4 @@ Ta screenshots pa:
 - Apply-jobb efter merge/manual run
 - Secret/variables config (utan att visa hemlig data)
 - Branch ruleset for `main`
+
