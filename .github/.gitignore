@@ -1,0 +1,7 @@
+# Keep this file for future .github-specific ignores.
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+*.tfvars
+!example.tfvars
