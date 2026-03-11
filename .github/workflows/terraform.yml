@@ -35,7 +35,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Trivy IaC scan
+      - name: Trivy IaC report (always upload)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: table
+          output: trivy-report.txt
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          exit-code: '0'
+      - name: Upload Trivy report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-${{ github.run_id }}
+          path: trivy-report.txt
+      - name: Enforce CRITICAL gate
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: config
@@ -112,4 +127,3 @@ jobs:
         run: terraform init -backend=false
       - name: Terraform apply
         run: terraform apply -auto-approve
-
