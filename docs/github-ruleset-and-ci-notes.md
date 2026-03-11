@@ -1,10 +1,10 @@
-# GitHub Ruleset and CI Decisions (Lab 1)
+# GitHub-regler och CI-beslut (Lab 1)
 
-Detta dokument beskriver vilka GitHub-regler och CI-val som används i `lab1-terraform`, och varfor.
+Detta dokument beskriver vilka GitHub-regler och CI-val som används i `lab1-terraform` och varför.
 
-## 1) Branch ruleset för `main`
+## 1) Branch protection för `main`
 
-Rekommenderad ruleset i GitHub:
+Rekommenderad konfiguration i GitHub:
 
 - Require pull request before merge
 - Require at least 1 approval
@@ -15,67 +15,81 @@ Rekommenderad ruleset i GitHub:
 
 ### Varför
 
-- Tvingar all kod genom PR-flodet.
-- Sakerstaller att CI (lint, scan, validate, plan) ar gron innan merge.
-- Minskar risk for att osakra eller obekraftade andringar hamnar i `main`.
+- Tvingar all kod genom PR-flödet.
+- Säkerställer att CI (lint, security, validate, plan) är grön innan merge.
+- Minskar risken för osäkra eller obekräftade ändringar i `main`.
 
-## 2) Secrets and repository variables
+## 2) Secrets och repository variables
 
-Konfigurera i `Settings -> Secrets and variables -> Actions`:
+Konfigurera i `Settings -> Secrets and variables -> Actions`.
 
-### Secret
+### Secrets
 
-- `GCP_SA_KEY`: JSON-key for GCP service account
+- `GCP_SA_KEY`: JSON-nyckel för service account i GCP.
 
 ### Variables
 
-- `GCP_PROJECT_ID`: target project for Terraform
-- `STUDENT_ID`: anvands i namngivning av resurser
-- `GCP_REGION` (valfri): default fallback i workflow ar `europe-north1`
+- `GCP_PROJECT_ID`: målprojekt för Terraform.
+- `STUDENT_ID`: används i namngivning av resurser.
+- `GCP_REGION` (valfri): fallback i workflow är `europe-north1`.
 
-### Varfor
+### Varför
 
-- Inga kansliga varder i repo.
-- `terraform.tfvars` kan vara lokalt och ignoreras i git.
-- CI far samma styrning oavsett utvecklares lokala miljo.
+- Inga känsliga värden i repo.
+- `terraform.tfvars` hålls lokalt och ignoreras i git.
+- CI får samma styrning oavsett utvecklares lokala miljö.
 
-## 3) Workflow strategy
+## 3) Workflow-strategi
 
-Workflow fil: `.github/workflows/terraform.yml`
+Workflow-fil: `.github/workflows/terraform.yml`
 
-- `lint` (terraform fmt check)
-- `security` (Trivy IaC scan, blockerar CRITICAL)
-- `validate` (terraform init -backend=false + validate)
+- `lint` (Terraform `fmt`-kontroll)
+- `security` (Trivy IaC-skanning, blockerar `CRITICAL`)
+- `validate` (`terraform init -backend=false` + `terraform validate`)
 - `plan` (autentiserad med `GCP_SA_KEY`)
-- `apply` endast pa:
-  - `push` till `main`, eller
+- `apply` endast vid:
+  - push till `main`, eller
   - manuell `workflow_dispatch`
 
-### Varfor plan/apply delas upp
+### Varför plan/apply delas upp
 
-- PR ska visa vad som kommer andras (`plan`) utan att skapa resurser.
-- `apply` sker bara i kontrollerade scenarier (main/manuell korning).
-- Minskar risk for oavsiktliga kostnader och oonskade infrastrukturandringar.
+- PR ska visa vad som ändras (`plan`) utan att skapa resurser.
+- `apply` sker bara i kontrollerade scenarier.
+- Minskar risken för oavsiktliga kostnader och oönskade infrastrukturändringar.
 
-## 4) Why `terraform.tfvars` is not committed
+## 4) Varför `terraform.tfvars` inte committas
 
 `terraform.tfvars` ska inte trackas i git.
 
-### Varfor
+### Varför
 
-- Filen innehaller ofta miljo- eller identitetsdata.
-- Historik-lackage undviks.
-- Samma kodbas kan anvandas i flera miljoer med olika GitHub variables/secrets.
+- Filen innehåller ofta miljö- eller identitetsdata.
+- Risken för läckage i historik minskar.
+- Samma kod kan användas i flera miljöer med olika secrets/variables.
 
-## 5) Evidence for report
+## 5) Förbättringspunkt: Node 24-migrering i GitHub Actions
 
-Notering: HIGH-fynd loggas men blockerar inte merge i nulaget. Detta for att uppfylla VG-kravet "Pipeline blockerar CRITICAL" och samtidigt kunna arbeta iterativt med hardening.
+GitHub har varnat för utfasning av Node 20 för flera actions.
+För att minska risk har workflowen uppdaterats med:
 
-Ta screenshots pa:
+- `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`
 
-- PR med gron pipeline
-- Plan-jobb i PR
-- Apply-jobb efter merge/manual run
-- Secret/variables config (utan att visa hemlig data)
-- Branch ruleset for `main`
+### Varför
 
+- Vi testar kompatibilitet med Node 24 redan nu.
+- Vi minskar risken för driftstörningar när GitHub ändrar default-runtime.
+- Detta kan användas som förbättringspunkt i rapporten.
+
+## 6) Evidens för rapport
+
+Notering: `HIGH`-fynd loggas i Trivy-rapporten men blockerar inte merge.
+Blockering sker på `CRITICAL`, enligt VG-kravet.
+
+Ta screenshots på:
+
+- PR med grön pipeline
+- `plan`-jobb i PR (när IAM-behörighet finns)
+- `apply`-jobb efter merge/manuell körning
+- Secret/variables-konfiguration (utan att visa hemlig data)
+- Branch protection för `main`
+- Trivy-artifact med rapport

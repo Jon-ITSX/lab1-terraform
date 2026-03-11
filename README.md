@@ -1,24 +1,23 @@
 # Lab 1 - Terraform + GCP
 
-Detta repo innehaller Terraform-kod som skapar en Linux VM i GCP med en backup-strategi via snapshot policy.
+Detta repo innehåller Terraform-kod som skapar en Linux-VM i GCP med en backupstrategi via snapshot policy.
 
-## Innehall
+## Innehåll
 
-- Linux VM (`google_compute_instance`)
-- Boot-disk (`google_compute_disk`)
-- Daglig snapshot policy (`google_compute_resource_policy`)
+- Linux-VM (`google_compute_instance`)
+- Daglig snapshot policy för backup
 - CI via GitHub Actions:
-  - Terraform format check
-  - TFLint
-  - Terraform validate
-  - tfsec scan
+  - Terraform formatkontroll (`fmt`)
+  - Säkerhetsskanning med Trivy
+  - Terraform `validate`
+  - Terraform `plan` och `apply` (beroende av IAM-behörigheter)
 
-## Forberedelser
+## Förberedelser
 
-1. Skapa eller valj ett GCP-projekt.
+1. Skapa eller välj ett GCP-projekt.
 2. Aktivera Compute Engine API.
 3. Installera Terraform lokalt.
-4. Autentisera mot GCP, exempel:
+4. Autentisera mot GCP, till exempel:
 
 ```bash
 gcloud auth application-default login
@@ -26,15 +25,17 @@ gcloud auth application-default login
 
 ## Konfiguration
 
-Uppdatera `terraform.tfvars`:
+Skapa en lokal `terraform.tfvars` utifrån `terraform.example.tfvars` och fyll i dina värden.
+
+Exempel:
 
 ```hcl
 project_id = "your-project-id"
 region     = "europe-north1"
-zone       = "europe-north1-a"
+student_id = "fornamn-efternamn"
 ```
 
-## Koersteg lokalt
+## Körsteg lokalt
 
 ```bash
 terraform init
@@ -44,26 +45,27 @@ terraform plan
 terraform apply
 ```
 
-## Backup-strategi
+## Backupstrategi
 
-Snapshot policy skapas med daglig backup och retention i ett antal dagar (`snapshot_retention_days`).
-Policyn kopplas till VM:ens boot-disk via `google_compute_disk_resource_policy_attachment`.
+Backup implementeras med snapshot policy i Terraform.
+Policyn kopplas till disken för VM-instansen.
 
 ## GitHub Actions
 
-Workflow finns i `.github/workflows/terraform.yml` och kor pa:
+Workflow finns i `.github/workflows/terraform.yml` och kör på:
 
-- Pull Requests
+- Pull requests mot `main`
 - Push till `main`
+- Manuell körning (`workflow_dispatch`)
 
-## Evidens till inlamning (G)
+## Evidens till inlämning (G)
 
-Lagg till screenshots i `docs/screenshots/` och referera dem har:
+Lägg screenshots i `docs/screenshots/` och referera dem här:
 
 - [ ] Terraform apply klart (VM skapad i GCP)
 - [ ] Snapshot policy synlig i GCP
-- [ ] GitHub Actions gron pipeline (PR)
-- [ ] Minst en PR med synlig pipeline-korning
+- [ ] Grön pipeline i GitHub Actions
+- [ ] Minst en PR med synlig pipelinekörning
 
 Exempel:
 
@@ -71,10 +73,8 @@ Exempel:
 - `docs/screenshots/02-snapshot-policy.png`
 - `docs/screenshots/03-pr-pipeline.png`
 
-## Att-goera efter denna grund
+## Nästa steg
 
-1. Skapa feature branch.
-2. Gor en liten andring (t.ex. taggar eller machine type).
-3. Push och oppna PR.
-4. Ta screenshot pa pipeline i PR.
-5. Merga nar pipeline ar gron.
+1. Vänta in IAM-besked från utbildaren för `plan/apply` i GCP-projektet.
+2. Kör ny pipeline och kontrollera Trivy-artifact.
+3. Slutför README med faktiska screenshots inför inlämning.
