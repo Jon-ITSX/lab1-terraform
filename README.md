@@ -30,9 +30,11 @@ Skapa en lokal `terraform.tfvars` från `terraform.example.tfvars`.
 Exempel:
 
 ```hcl
-project_id = "your-project-id"
-region     = "europe-north1"
-student_id = "fornamn-efternamn"
+project_id   = "your-project-id"
+region       = "europe-north1"
+zone         = "europe-north1-b"
+machine_type = "e2-micro"
+student_id   = "fornamn-efternamn"
 ```
 
 ## Körning lokalt
@@ -45,13 +47,23 @@ terraform plan
 terraform apply
 ```
 
-## CI-variabler i GitHub
+## Secrets i GitHub
 
-Lägg till följande repository variables:
+Lägg till följande repository secrets:
 
+- `GCP_SA_KEY`
 - `GCP_PROJECT_ID`
 - `STUDENT_ID`
 - `GCP_REGION` (valfri)
+- `GCP_ZONE` (valfri)
+- `GCP_MACHINE_TYPE` (valfri)
+
+## Hantering av kapacitetsfel i zon
+
+Vi har gjort `zone` till en explicit variabel i Terraform och lagt till automatisk zon-fallback i CI-`apply`.
+
+Skälet är att GCP ibland saknar kapacitet i en enskild zon för `e2-micro`.
+Med denna lösning kan pipelinen automatiskt prova nästa zon utan att vi ändrar grundkoden från utbildaren.
 
 ## Evidens till inlämning (G)
 
@@ -61,11 +73,3 @@ Lägg screenshots i `docs/screenshots/`:
 - Snapshot policy i GCP
 - Grön pipeline
 - Minst en PR med synlig pipelinekörning
-
-
-## Hantering av kapacitetsfel i zon
-
-Vi har gjort zone till en explicit variabel i Terraform. Skälet är att GCP ibland saknar kapacitet i en specifik zon (t.ex. för 2-micro).
-
-Genom att styra zon via variabel kan vi snabbt byta zon utan att ändra resurslogik, vilket ger stabilare leverans i CI och vid inlämning.
-

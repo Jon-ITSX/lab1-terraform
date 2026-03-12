@@ -15,6 +15,12 @@ variable "zone" {
   default     = "europe-north1-b"
 }
 
+variable "machine_type" {
+  description = "Machine type for the VM. Default keeps educator baseline."
+  type        = string
+  default     = "e2-micro"
+}
+
 variable "student_id" {
   description = "Your student identifier"
   type        = string

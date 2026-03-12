@@ -21,6 +21,8 @@ I `Settings -> Secrets and variables -> Actions` används följande **secrets**:
 - `GCP_PROJECT_ID`
 - `STUDENT_ID`
 - `GCP_REGION` (valfri)
+- `GCP_ZONE` (valfri)
+- `GCP_MACHINE_TYPE` (valfri)
 
 Vi använder secrets i stället för variables för att minska synlighet av metadata i repository-inställningarna och loggar.
 
@@ -80,7 +82,7 @@ Motivering:
 - Mindre exponering av hemligheter på utvecklarmaskiner.
 - Lägre risk för oavsiktlig läckage via filer, backup eller felaktig hantering.
 
-## 8) Beslut vid kapacitetsfel: zon styrs via variabel
+## 8) Beslut vid kapacitetsfel: zon-fallback i apply
 
 Problem:
 
@@ -88,11 +90,12 @@ Problem:
 
 Vald lösning:
 
-- Vi gjorde `zone` till en explicit Terraform-variabel med default `europe-north1-b`.
-- VM-resursen använder nu `var.zone` i stället för hårdkodad `${var.region}-a`.
+- Vi behåller utbildarens baseline (`e2-micro`) som default via variabel.
+- Vi gör `zone` konfigurerbar.
+- I CI-`apply` testas flera zoner automatiskt om felet är just kapacitetsbrist.
 
 Motivering:
 
-- Snabb failover till annan zon utan kodändring i resurser.
-- Mindre driftstörning i CI.
-- Tydligare och mer robust konfiguration för rapport och vidare arbete.
+- Minimal avvikelse från utbildarens grundkod.
+- Stabilare leverans i faktisk kursmiljö där zonkapacitet varierar.
+- Fallback triggas endast vid tydligt kapacitetsfel; andra fel stoppar direkt.

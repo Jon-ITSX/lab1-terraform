@@ -19,6 +19,8 @@ env:
   TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
   TF_VAR_student_id: ${{ secrets.STUDENT_ID }}
   TF_VAR_region: ${{ secrets.GCP_REGION }}
+  TF_VAR_zone: ${{ secrets.GCP_ZONE }}
+  TF_VAR_machine_type: ${{ secrets.GCP_MACHINE_TYPE }}
   TF_VAR_gcp_sa_key_json: ${{ secrets.GCP_SA_KEY }}
 
 jobs:
@@ -80,12 +82,18 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - uses: hashicorp/setup-terraform@v3
-      - name: Set region fallback
+      - name: Set region/zone/machine fallback
         run: |
           if [ -z "$TF_VAR_region" ]; then
             echo "TF_VAR_region=europe-north1" >> "$GITHUB_ENV"
           fi
-      - name: Verify required CI variables
+          if [ -z "$TF_VAR_zone" ]; then
+            echo "TF_VAR_zone=${TF_VAR_region}-b" >> "$GITHUB_ENV"
+          fi
+          if [ -z "$TF_VAR_machine_type" ]; then
+            echo "TF_VAR_machine_type=e2-micro" >> "$GITHUB_ENV"
+          fi
+      - name: Verify required CI secrets
         run: |
           test -n "$TF_VAR_project_id" || (echo "Missing repository secret: GCP_PROJECT_ID" && exit 1)
           test -n "$TF_VAR_student_id" || (echo "Missing repository secret: STUDENT_ID" && exit 1)
@@ -116,18 +124,63 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - uses: hashicorp/setup-terraform@v3
-      - name: Set region fallback
+      - name: Set region/zone/machine fallback
         run: |
           if [ -z "$TF_VAR_region" ]; then
             echo "TF_VAR_region=europe-north1" >> "$GITHUB_ENV"
           fi
-      - name: Verify required CI variables
+          if [ -z "$TF_VAR_zone" ]; then
+            echo "TF_VAR_zone=${TF_VAR_region}-b" >> "$GITHUB_ENV"
+          fi
+          if [ -z "$TF_VAR_machine_type" ]; then
+            echo "TF_VAR_machine_type=e2-micro" >> "$GITHUB_ENV"
+          fi
+      - name: Verify required CI secrets
         run: |
           test -n "$TF_VAR_project_id" || (echo "Missing repository secret: GCP_PROJECT_ID" && exit 1)
           test -n "$TF_VAR_student_id" || (echo "Missing repository secret: STUDENT_ID" && exit 1)
           test -n "$TF_VAR_gcp_sa_key_json" || (echo "Missing repository secret: GCP_SA_KEY" && exit 1)
       - name: Terraform init
         run: terraform init -backend=false
-      - name: Terraform apply
-        run: terraform apply -auto-approve
+      - name: Terraform apply with zone fallback
+        shell: bash
+        run: |
+          set -euo pipefail
 
+          base_zone="${TF_VAR_zone:-${TF_VAR_region}-b}"
+          zones=("$base_zone" "${TF_VAR_region}-a" "${TF_VAR_region}-b" "${TF_VAR_region}-c")
+
+          declare -A seen
+          ordered=()
+          for z in "${zones[@]}"; do
+            if [ -n "$z" ] && [ -z "${seen[$z]+x}" ]; then
+              ordered+=("$z")
+              seen[$z]=1
+            fi
+          done
+
+          for z in "${ordered[@]}"; do
+            echo "Trying apply in zone: $z"
+            export TF_VAR_zone="$z"
+
+            set +e
+            terraform apply -auto-approve 2>&1 | tee apply.log
+            rc=${PIPESTATUS[0]}
+            set -e
+
+            if [ "$rc" -eq 0 ]; then
+              echo "Apply succeeded in zone: $z"
+              exit 0
+            fi
+
+            if grep -qi "does not have enough resources available" apply.log; then
+              echo "Capacity issue in zone $z. Trying next zone..."
+              continue
+            fi
+
+            echo "Apply failed for a non-capacity reason in zone $z. Stopping."
+            exit "$rc"
+          done
+
+          echo "All candidate zones exhausted due to capacity constraints."
+          exit 1

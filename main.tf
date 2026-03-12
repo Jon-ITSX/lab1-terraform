@@ -15,7 +15,7 @@ provider "google" {
 
 resource "google_compute_instance" "vm" {
   name         = "${var.student_id}-lab1-vm"
-  machine_type = "e2-micro"
+  machine_type = var.machine_type
   zone         = var.zone
 
   boot_disk {
@@ -41,4 +41,3 @@ resource "google_compute_instance" "vm" {
 
   tags = ["lab1", "ssh"]
 }
-
