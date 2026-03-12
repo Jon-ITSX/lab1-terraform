@@ -13,19 +13,16 @@ Rekommenderad konfiguration:
 - Block force pushes
 - Block deletions
 
-## 2) Secrets och variables
+## 2) Secrets (minimerad exponering)
 
-I `Settings -> Secrets and variables -> Actions` används:
-
-### Secret
+I `Settings -> Secrets and variables -> Actions` används följande **secrets**:
 
 - `GCP_SA_KEY` (JSON för delad service account)
-
-### Variables
-
 - `GCP_PROJECT_ID`
 - `STUDENT_ID`
 - `GCP_REGION` (valfri)
+
+Vi använder secrets i stället för variables för att minska synlighet av metadata i repository-inställningarna och loggar.
 
 ## 3) CI-strategi
 
@@ -68,3 +65,17 @@ $env:TF_VAR_gcp_sa_key_json = Get-Content -Raw .\gcp-sa-key.json
 ## 6) Förbättringspunkt: Node 24-migrering
 
 Workflowen sätter `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` per jobb för att minska risk inför GitHubs Node 24-övergång.
+
+## 7) Säkerhetsbeslut: nyckeln lagras endast i GitHub Secrets
+
+För att minska risken för kompromettering lagras `GCP_SA_KEY` endast i GitHub Secrets och inte som lokal fil i utvecklingsmiljön.
+
+Konsekvens:
+
+- `terraform plan/apply` körs i första hand i GitHub Actions.
+- Lokal körning med samma service account är inte möjlig utan att nyckeln tillfälligt hämtas lokalt.
+
+Motivering:
+
+- Mindre exponering av hemligheter på utvecklarmaskiner.
+- Lägre risk för oavsiktlig läckage via filer, backup eller felaktig hantering.

@@ -16,9 +16,9 @@ concurrency:
 
 env:
   TF_IN_AUTOMATION: true
-  TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
-  TF_VAR_student_id: ${{ vars.STUDENT_ID }}
-  TF_VAR_region: ${{ vars.GCP_REGION }}
+  TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+  TF_VAR_student_id: ${{ secrets.STUDENT_ID }}
+  TF_VAR_region: ${{ secrets.GCP_REGION }}
   TF_VAR_gcp_sa_key_json: ${{ secrets.GCP_SA_KEY }}
 
 jobs:
@@ -87,8 +87,8 @@ jobs:
           fi
       - name: Verify required CI variables
         run: |
-          test -n "$TF_VAR_project_id" || (echo "Missing repository variable: GCP_PROJECT_ID" && exit 1)
-          test -n "$TF_VAR_student_id" || (echo "Missing repository variable: STUDENT_ID" && exit 1)
+          test -n "$TF_VAR_project_id" || (echo "Missing repository secret: GCP_PROJECT_ID" && exit 1)
+          test -n "$TF_VAR_student_id" || (echo "Missing repository secret: STUDENT_ID" && exit 1)
           test -n "$TF_VAR_gcp_sa_key_json" || (echo "Missing repository secret: GCP_SA_KEY" && exit 1)
       - name: Terraform init
         run: terraform init -backend=false
@@ -123,10 +123,11 @@ jobs:
           fi
       - name: Verify required CI variables
         run: |
-          test -n "$TF_VAR_project_id" || (echo "Missing repository variable: GCP_PROJECT_ID" && exit 1)
-          test -n "$TF_VAR_student_id" || (echo "Missing repository variable: STUDENT_ID" && exit 1)
+          test -n "$TF_VAR_project_id" || (echo "Missing repository secret: GCP_PROJECT_ID" && exit 1)
+          test -n "$TF_VAR_student_id" || (echo "Missing repository secret: STUDENT_ID" && exit 1)
           test -n "$TF_VAR_gcp_sa_key_json" || (echo "Missing repository secret: GCP_SA_KEY" && exit 1)
       - name: Terraform init
         run: terraform init -backend=false
       - name: Terraform apply
         run: terraform apply -auto-approve
+
