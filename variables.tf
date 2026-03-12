@@ -13,3 +13,9 @@ variable "student_id" {
   description = "Your student identifier"
   type        = string
 }
+
+variable "gcp_sa_key_json" {
+  description = "Service account key JSON content for Terraform provider authentication."
+  type        = string
+  sensitive   = true
+}

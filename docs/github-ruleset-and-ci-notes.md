@@ -1,10 +1,10 @@
 # GitHub-regler och CI-beslut (Lab 1)
 
-Detta dokument beskriver vilka GitHub-regler och CI-val som används i `lab1-terraform` och varför.
+Detta dokument beskriver varför projektet är konfigurerat som det är.
 
 ## 1) Branch protection för `main`
 
-Rekommenderad konfiguration i GitHub:
+Rekommenderad konfiguration:
 
 - Require pull request before merge
 - Require at least 1 approval
@@ -13,83 +13,58 @@ Rekommenderad konfiguration i GitHub:
 - Block force pushes
 - Block deletions
 
-### Varför
+## 2) Secrets och variables
 
-- Tvingar all kod genom PR-flödet.
-- Säkerställer att CI (lint, security, validate, plan) är grön innan merge.
-- Minskar risken för osäkra eller obekräftade ändringar i `main`.
+I `Settings -> Secrets and variables -> Actions` används:
 
-## 2) Secrets och repository variables
+### Secret
 
-Konfigurera i `Settings -> Secrets and variables -> Actions`.
-
-### Secrets
-
-- `GCP_SA_KEY`: JSON-nyckel för service account i GCP.
+- `GCP_SA_KEY` (JSON för delad service account)
 
 ### Variables
 
-- `GCP_PROJECT_ID`: målprojekt för Terraform.
-- `STUDENT_ID`: används i namngivning av resurser.
-- `GCP_REGION` (valfri): fallback i workflow är `europe-north1`.
+- `GCP_PROJECT_ID`
+- `STUDENT_ID`
+- `GCP_REGION` (valfri)
 
-### Varför
+## 3) CI-strategi
 
-- Inga känsliga värden i repo.
-- `terraform.tfvars` hålls lokalt och ignoreras i git.
-- CI får samma styrning oavsett utvecklares lokala miljö.
+Workflow: `.github/workflows/terraform.yml`
 
-## 3) Workflow-strategi
+- `lint`: Terraform `fmt`
+- `security`: Trivy med blockerande `CRITICAL`
+- `validate`: Terraform `validate`
+- `plan`/`apply`: använder `GCP_SA_KEY` både via `google-github-actions/auth` och som `TF_VAR_gcp_sa_key_json`
 
-Workflow-fil: `.github/workflows/terraform.yml`
+Syfte:
 
-- `lint` (Terraform `fmt`-kontroll)
-- `security` (Trivy IaC-skanning, blockerar `CRITICAL`)
-- `validate` (`terraform init -backend=false` + `terraform validate`)
-- `plan` (autentiserad med `GCP_SA_KEY`)
-- `apply` endast vid:
-  - push till `main`, eller
-  - manuell `workflow_dispatch`
+- Samma autentiseringsmodell lokalt och i CI
+- Inga hemligheter i repo
+- Tydlig blockering av kritiska säkerhetsfynd
 
-### Varför plan/apply delas upp
+## 4) Varför vår workflow har `env` och `concurrency`
 
-- PR ska visa vad som ändras (`plan`) utan att skapa resurser.
-- `apply` sker bara i kontrollerade scenarier.
-- Minskar risken för oavsiktliga kostnader och oönskade infrastrukturändringar.
+Utbildarens kod är ett minimalt exempel. Vår workflow innehåller två extra delar för bättre drift i CI:
 
-## 4) Varför `terraform.tfvars` inte committas
+- `env`:
+  - Samlar gemensamma variabler på ett ställe (`TF_VAR_*`, `TF_IN_AUTOMATION`).
+  - Minskar duplicering i varje jobb/steg.
+  - Säkerställer att `plan`/`apply` får samma indata i alla körningar.
 
-`terraform.tfvars` ska inte trackas i git.
+- `concurrency`:
+  - Hindrar att flera körningar på samma branch krockar med varandra.
+  - Minskar risk för race conditions, särskilt när `plan` och `apply` finns i samma workflow.
 
-### Varför
+## 5) Lokal körning med service account
 
-- Filen innehåller ofta miljö- eller identitetsdata.
-- Risken för läckage i historik minskar.
-- Samma kod kan användas i flera miljöer med olika secrets/variables.
+Lokal Terraform-körning använder samma nyckelmodell som CI:
 
-## 5) Förbättringspunkt: Node 24-migrering i GitHub Actions
+```powershell
+$env:TF_VAR_gcp_sa_key_json = Get-Content -Raw .\gcp-sa-key.json
+```
 
-GitHub har varnat för utfasning av Node 20 för flera actions.
-För att minska risk har workflowen uppdaterats med:
+`terraform.tfvars` hålls lokal och ignoreras av git.
 
-- `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`
+## 6) Förbättringspunkt: Node 24-migrering
 
-### Varför
-
-- Vi testar kompatibilitet med Node 24 redan nu.
-- Vi minskar risken för driftstörningar när GitHub ändrar default-runtime.
-- Detta kan användas som förbättringspunkt i rapporten.
-
-## 6) Evidens för rapport
-
-Notering: `HIGH`-fynd loggas i Trivy-rapporten men blockerar inte merge.
-Blockering sker på `CRITICAL`, enligt VG-kravet.
-
-Ta screenshots på:
-
-- PR med grön pipeline
-- `plan`-jobb i PR (när IAM-behörighet finns)
-- `apply`-jobb efter merge/manuell körning
-- Secret/variables-konfiguration (utan att visa hemlig data)
-- Branch protection för `main`
-- Trivy-artifact med rapport
+Workflowen sätter `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` per jobb för att minska risk inför GitHubs Node 24-övergång.

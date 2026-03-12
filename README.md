@@ -1,31 +1,31 @@
 # Lab 1 - Terraform + GCP
 
-Detta repo innehåller Terraform-kod som skapar en Linux-VM i GCP med en backupstrategi via snapshot policy.
+Detta repo innehåller Terraform-kod som skapar en Linux-VM i GCP och kör kontroller i GitHub Actions.
 
 ## Innehåll
 
 - Linux-VM (`google_compute_instance`)
-- Daglig snapshot policy för backup
-- CI via GitHub Actions:
-  - Terraform formatkontroll (`fmt`)
-  - Säkerhetsskanning med Trivy
-  - Terraform `validate`
-  - Terraform `plan` och `apply` (beroende av IAM-behörigheter)
+- Startup-script för grundhärdning
+- Trivy IaC-scan med blockerande `CRITICAL`
+- Terraform `fmt`, `validate`, `plan`, `apply`
 
-## Förberedelser
+## Autentisering (viktigt)
 
-1. Skapa eller välj ett GCP-projekt.
-2. Aktivera Compute Engine API.
-3. Installera Terraform lokalt.
-4. Autentisera mot GCP, till exempel:
+Enligt utbildarens instruktion används delad service account-nyckel (`GCP_SA_KEY`).
 
-```bash
-gcloud auth application-default login
+1. Hämta nyckeln via Mission Control -> Credentials -> Request `GCP_SA_KEY`.
+2. Lägg in nyckeln i GitHub som repository secret: `GCP_SA_KEY`.
+3. Lokalt: sätt miljövariabeln `TF_VAR_gcp_sa_key_json` till hela JSON-innehållet.
+
+PowerShell-exempel lokalt:
+
+```powershell
+$env:TF_VAR_gcp_sa_key_json = Get-Content -Raw .\gcp-sa-key.json
 ```
 
 ## Konfiguration
 
-Skapa en lokal `terraform.tfvars` utifrån `terraform.example.tfvars` och fyll i dina värden.
+Skapa en lokal `terraform.tfvars` från `terraform.example.tfvars`.
 
 Exempel:
 
@@ -35,7 +35,7 @@ region     = "europe-north1"
 student_id = "fornamn-efternamn"
 ```
 
-## Körsteg lokalt
+## Körning lokalt
 
 ```bash
 terraform init
@@ -45,36 +45,19 @@ terraform plan
 terraform apply
 ```
 
-## Backupstrategi
+## CI-variabler i GitHub
 
-Backup implementeras med snapshot policy i Terraform.
-Policyn kopplas till disken för VM-instansen.
+Lägg till följande repository variables:
 
-## GitHub Actions
-
-Workflow finns i `.github/workflows/terraform.yml` och kör på:
-
-- Pull requests mot `main`
-- Push till `main`
-- Manuell körning (`workflow_dispatch`)
+- `GCP_PROJECT_ID`
+- `STUDENT_ID`
+- `GCP_REGION` (valfri)
 
 ## Evidens till inlämning (G)
 
-Lägg screenshots i `docs/screenshots/` och referera dem här:
+Lägg screenshots i `docs/screenshots/`:
 
-- [ ] Terraform apply klart (VM skapad i GCP)
-- [ ] Snapshot policy synlig i GCP
-- [ ] Grön pipeline i GitHub Actions
-- [ ] Minst en PR med synlig pipelinekörning
-
-Exempel:
-
-- `docs/screenshots/01-terraform-apply.png`
-- `docs/screenshots/02-snapshot-policy.png`
-- `docs/screenshots/03-pr-pipeline.png`
-
-## Nästa steg
-
-1. Vänta in IAM-besked från utbildaren för `plan/apply` i GCP-projektet.
-2. Kör ny pipeline och kontrollera Trivy-artifact.
-3. Slutför README med faktiska screenshots inför inlämning.
+- Terraform apply klart (VM skapad)
+- Snapshot policy i GCP
+- Grön pipeline
+- Minst en PR med synlig pipelinekörning

@@ -12,3 +12,9 @@ override.tf.json
 terraform.rc
 terraform.tfvars
 *.tfvars
+
+# Local credentials (never commit)
+gcp-sa-key.json
+*.sa-key.json
+secrets/
+.secrets/

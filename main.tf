@@ -8,8 +8,9 @@ terraform {
 }
 
 provider "google" {
-  project = var.project_id
-  region  = var.region
+  project     = var.project_id
+  region      = var.region
+  credentials = var.gcp_sa_key_json
 }
 
 resource "google_compute_instance" "vm" {
