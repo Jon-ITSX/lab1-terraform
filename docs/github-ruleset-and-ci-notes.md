@@ -79,3 +79,20 @@ Motivering:
 
 - Mindre exponering av hemligheter på utvecklarmaskiner.
 - Lägre risk för oavsiktlig läckage via filer, backup eller felaktig hantering.
+
+## 8) Beslut vid kapacitetsfel: zon styrs via variabel
+
+Problem:
+
+- `apply` misslyckade periodvis när vald zon saknade kapacitet för `e2-micro`.
+
+Vald lösning:
+
+- Vi gjorde `zone` till en explicit Terraform-variabel med default `europe-north1-b`.
+- VM-resursen använder nu `var.zone` i stället för hårdkodad `${var.region}-a`.
+
+Motivering:
+
+- Snabb failover till annan zon utan kodändring i resurser.
+- Mindre driftstörning i CI.
+- Tydligare och mer robust konfiguration för rapport och vidare arbete.

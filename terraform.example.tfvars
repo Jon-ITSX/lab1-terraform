@@ -1,5 +1,6 @@
 project_id = "PROJECTNAME"
-region     = "REGION"
+region     = "europe-north1"
+zone       = "europe-north1-b"
 student_id = "YOUR-NAME"
 
 # Set this via environment variable instead of committing it:

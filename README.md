@@ -61,3 +61,11 @@ Lägg screenshots i `docs/screenshots/`:
 - Snapshot policy i GCP
 - Grön pipeline
 - Minst en PR med synlig pipelinekörning
+
+
+## Hantering av kapacitetsfel i zon
+
+Vi har gjort zone till en explicit variabel i Terraform. Skälet är att GCP ibland saknar kapacitet i en specifik zon (t.ex. för 2-micro).
+
+Genom att styra zon via variabel kan vi snabbt byta zon utan att ändra resurslogik, vilket ger stabilare leverans i CI och vid inlämning.
+
