@@ -163,6 +163,12 @@ jobs:
             echo "Trying apply in zone: $z"
             export TF_VAR_zone="$z"
 
+            # CI uses local state (-backend=false). If VM already exists in GCP, skip duplicate create.
+            if gcloud compute instances describe "${TF_VAR_student_id}-lab1-vm" --zone "$z" --project "$TF_VAR_project_id" >/dev/null 2>&1; then
+              echo "VM already exists in zone $z. Skipping apply (no remote state configured in CI)."
+              exit 0
+            fi
+
             set +e
             terraform apply -auto-approve 2>&1 | tee apply.log
             rc=${PIPESTATUS[0]}
@@ -176,6 +182,11 @@ jobs:
             if grep -qi "does not have enough resources available" apply.log; then
               echo "Capacity issue in zone $z. Trying next zone..."
               continue
+            fi
+
+            if grep -qi "already exists" apply.log; then
+              echo "Resource already exists in zone $z without matching state. Skipping apply."
+              exit 0
             fi
 
             echo "Apply failed for a non-capacity reason in zone $z. Stopping."
