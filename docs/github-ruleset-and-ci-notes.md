@@ -6,12 +6,12 @@ Detta dokument beskriver varför projektet är konfigurerat som det är.
 
 Rekommenderad konfiguration:
 
-- Require pull request before merge
-- Require at least 1 approval
-- Require status checks to pass
-- Require branch to be up to date before merge
-- Block force pushes
-- Block deletions
+[X] Require pull request before merge
+[ ] Require at least 1 approval - Ej satt eftersom jag är ensam i projektet i nuläget.
+[X] Require status checks to pass
+[X] Require branch to be up to date before merge
+[X] Block force pushes
+[X] Block deletions
 
 ## 2) Secrets (minimerad exponering)
 
@@ -24,7 +24,7 @@ I `Settings -> Secrets and variables -> Actions` används följande **secrets**:
 - `GCP_ZONE` (valfri)
 - `GCP_MACHINE_TYPE` (valfri)
 
-Vi använder secrets i stället för variables för att minska synlighet av metadata i repository-inställningarna och loggar.
+Jag valde att använda secrets i stället för variables för att minska synlighet av metadata i repository-inställningarna och loggar.
 
 ## 3) CI-strategi
 
@@ -43,7 +43,7 @@ Syfte:
 
 ## 4) Varför vår workflow har `env` och `concurrency`
 
-Utbildarens kod är ett minimalt exempel. Vår workflow innehåller två extra delar för bättre drift i CI:
+Den ursprungliga koded verkade vara ett minimalt exempel. Min workflow innehåller två extra delar för bättre drift i CI:
 
 - `env`:
   - Samlar gemensamma variabler på ett ställe (`TF_VAR_*`, `TF_IN_AUTOMATION`).
@@ -56,17 +56,17 @@ Utbildarens kod är ett minimalt exempel. Vår workflow innehåller två extra d
 
 ## 5) Lokal körning med service account
 
-Lokal Terraform-körning använder samma nyckelmodell som CI:
+Service account-nyckeln lagras inte lokalt.
 
-```powershell
-$env:TF_VAR_gcp_sa_key_json = Get-Content -Raw .\gcp-sa-key.json
-```
+Det innebär att `terraform plan/apply` i normalfallet körs i GitHub Actions där `GCP_SA_KEY` finns som Secret.
+
+Lokal körning av `plan/apply` med samma nyckelmodell kräver att nyckeln hämtas tillfälligt, vilket jag valt att undvika av säkerhetsskäl.
 
 `terraform.tfvars` hålls lokal och ignoreras av git.
 
 ## 6) Förbättringspunkt: Node 24-migrering
 
-Workflowen sätter `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` per jobb för att minska risk inför GitHubs Node 24-övergång.
+Workflowen sätter `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` per jobb för att minska risk inför GitHubs Node 24-övergång. 2026-06-02.
 
 ## 7) Säkerhetsbeslut: nyckeln lagras endast i GitHub Secrets
 
@@ -90,12 +90,33 @@ Problem:
 
 Vald lösning:
 
-- Vi behåller utbildarens baseline (`e2-micro`) som default via variabel.
-- Vi gör `zone` konfigurerbar.
+- Jag har valt att behålla den ursprungliga baseline (`e2-micro`) som default via variabel.
+- Gör `zone` konfigurerbar.
 - I CI-`apply` testas flera zoner automatiskt om felet är just kapacitetsbrist.
 
 Motivering:
 
-- Minimal avvikelse från utbildarens grundkod.
+- Minimal avvikelse från grundkoden.
 - Stabilare leverans i faktisk kursmiljö där zonkapacitet varierar.
 - Fallback triggas endast vid tydligt kapacitetsfel; andra fel stoppar direkt.
+
+## 9) Backupstrategi: skillnad mot den ursprungliga minimalkoden
+
+Orginalkoden är en enkel och pedagogisk baseline som jag tolkar som ett exempel.
+
+Nuvarande implementation gör samma sak (daglig snapshot policy + retention), men med tydligare resurshantering:
+
+- Boot-disken skapas explicit som `google_compute_disk`.
+- Snapshot fästs i policy på den explicita disken via `google_compute_disk_resource_policy_attachment`.
+- Koden använder `var.zone` i stället för hårdkodad `${var.region}-a`.
+- Snapshotparametrar (`start_time`, `retention_days`) styrs via variabler.
+
+Motivering:
+
+- Mindre implicit beteende och färre antaganden om namn/ordning.
+- Stabilare i CI när zonkapacitet varierar.
+- Enklare att justera utan att ändra resurslogik.
+- Fortfarande i linje med kravet: backupstrategi via snapshot policy i Terraform.
+
+
+

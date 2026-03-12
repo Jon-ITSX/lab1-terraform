@@ -73,3 +73,9 @@ Lägg screenshots i `docs/screenshots/`:
 - Snapshot policy i GCP
 - Grön pipeline
 - Minst en PR med synlig pipelinekörning
+
+Tillagda screenshots:
+
+- `docs/screenshots/01-gcp-vm-overview.png` (översikt av VM-instans(er) i GCP Console)
+- `docs/screenshots/02-gcp-vm-details.png` (detaljvy för skapad VM i GCP Console)
+

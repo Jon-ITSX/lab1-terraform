@@ -9,3 +9,7 @@ output "vm_external_ip" {
 output "vm_zone" {
   value = google_compute_instance.vm.zone
 }
+
+output "snapshot_policy_name" {
+  value = google_compute_resource_policy.daily_snapshot_policy.name
+}

@@ -26,6 +26,18 @@ variable "student_id" {
   type        = string
 }
 
+variable "snapshot_start_time_utc" {
+  description = "Daily snapshot start time in UTC, format HH:MM."
+  type        = string
+  default     = "03:00"
+}
+
+variable "snapshot_retention_days" {
+  description = "Number of days snapshots are retained."
+  type        = number
+  default     = 7
+}
+
 variable "gcp_sa_key_json" {
   description = "Service account key JSON content for Terraform provider authentication."
   type        = string
