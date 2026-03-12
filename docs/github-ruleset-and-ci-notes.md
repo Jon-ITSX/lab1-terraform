@@ -120,3 +120,7 @@ Motivering:
 
 
 
+
+
+Tillägg: I CI-apply finns en guardrail som avbryter kontrollerat om VM redan finns (lready exists) eftersom state i nuläget körs utan remote backend. Detta är en temporär skyddsåtgärd tills remote state (GCS) är fullt infört.
+
