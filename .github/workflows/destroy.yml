@@ -1,0 +1,72 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DESTROY to confirm destruction of all resources"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: true
+  TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+  TF_VAR_student_id: ${{ secrets.STUDENT_ID }}
+  TF_VAR_region: ${{ secrets.GCP_REGION }}
+  TF_VAR_zone: ${{ secrets.GCP_ZONE }}
+  TF_VAR_machine_type: ${{ secrets.GCP_MACHINE_TYPE }}
+  TF_VAR_gcp_sa_key_json: ${{ secrets.GCP_SA_KEY }}
+
+jobs:
+  destroy:
+    name: Destroy
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'DESTROY'
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Set region/zone/machine fallback
+        run: |
+          if [ -z "$TF_VAR_region" ]; then
+            echo "TF_VAR_region=europe-north1" >> "$GITHUB_ENV"
+          fi
+          if [ -z "$TF_VAR_zone" ]; then
+            echo "TF_VAR_zone=${TF_VAR_region}-b" >> "$GITHUB_ENV"
+          fi
+          if [ -z "$TF_VAR_machine_type" ]; then
+            echo "TF_VAR_machine_type=e2-micro" >> "$GITHUB_ENV"
+          fi
+
+      - name: Verify required CI secrets
+        run: |
+          test -n "$TF_VAR_project_id"      || (echo "Missing secret: GCP_PROJECT_ID" && exit 1)
+          test -n "$TF_VAR_student_id"      || (echo "Missing secret: STUDENT_ID" && exit 1)
+          test -n "$TF_VAR_gcp_sa_key_json" || (echo "Missing secret: GCP_SA_KEY" && exit 1)
+
+      - name: Terraform init
+        env:
+          GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
+        run: |
+          if [ -n "$GCS_BUCKET" ]; then
+            terraform init -backend-config="bucket=$GCS_BUCKET" -backend-config="prefix=terraform/state"
+          else
+            echo "GCS_BUCKET not set – initialising without remote backend"
+            terraform init -backend=false
+          fi
+
+      - name: Terraform destroy
+        run: terraform destroy -auto-approve

@@ -1,11 +1,7 @@
 project_id              = "PROJECTNAME"
-region                  = "europe-north1"
-zone                    = "europe-north1-b"
-machine_type            = "e2-micro"
+region                  = "REGION"
+zone                    = "ZONE"
+machine_type            = "MACHINETYPE"
 student_id              = "YOUR-NAME"
 snapshot_start_time_utc = "03:00"
 snapshot_retention_days = 7
-
-# Set this via environment variable instead of committing it:
-# PowerShell: $env:TF_VAR_gcp_sa_key_json = Get-Content -Raw .\gcp-sa-key.json
-# gcp_sa_key_json = "<SERVICE_ACCOUNT_JSON>"
