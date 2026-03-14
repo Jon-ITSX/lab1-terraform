@@ -98,19 +98,21 @@ jobs:
           test -n "$TF_VAR_project_id" || (echo "Missing repository secret: GCP_PROJECT_ID" && exit 1)
           test -n "$TF_VAR_student_id" || (echo "Missing repository secret: STUDENT_ID" && exit 1)
           test -n "$TF_VAR_gcp_sa_key_json" || (echo "Missing repository secret: GCP_SA_KEY" && exit 1)
-      - name: Terraform init
+      - name: Terraform init and plan
         env:
           GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
         run: |
           if [ -n "$GCS_BUCKET" ]; then
             terraform init -backend-config="bucket=$GCS_BUCKET" -backend-config="prefix=terraform/state"
+            terraform plan -out=tfplan
           else
-            echo "GCS_BUCKET not set – initialising without remote backend (plan only)"
-            terraform init -backend=false
+            echo "GCS_BUCKET not configured – skipping plan until remote backend is available."
+            echo "Lint, security scan and validate have already verified the code."
           fi
-      - name: Terraform plan
-        run: terraform plan -out=tfplan
       - name: Upload plan artifact
+        if: env.GCS_BUCKET != ''
+        env:
+          GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
         uses: actions/upload-artifact@v4
         with:
           name: tfplan-${{ github.run_id }}
@@ -155,10 +157,13 @@ jobs:
           if [ -n "$GCS_BUCKET" ]; then
             terraform init -backend-config="bucket=$GCS_BUCKET" -backend-config="prefix=terraform/state"
           else
-            echo "GCS_BUCKET not set – initialising without remote backend"
-            terraform init -backend=false
+            echo "GCS_BUCKET not configured – skipping apply until remote backend is available."
+            exit 0
           fi
       - name: Terraform apply with zone fallback
+        if: env.GCS_BUCKET != ''
+        env:
+          GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
         shell: bash
         run: |
           set -euo pipefail
