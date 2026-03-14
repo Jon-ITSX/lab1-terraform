@@ -99,7 +99,15 @@ jobs:
           test -n "$TF_VAR_student_id" || (echo "Missing repository secret: STUDENT_ID" && exit 1)
           test -n "$TF_VAR_gcp_sa_key_json" || (echo "Missing repository secret: GCP_SA_KEY" && exit 1)
       - name: Terraform init
-        run: terraform init -backend=false
+        env:
+          GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
+        run: |
+          if [ -n "$GCS_BUCKET" ]; then
+            terraform init -backend-config="bucket=$GCS_BUCKET" -backend-config="prefix=terraform/state"
+          else
+            echo "GCS_BUCKET not set – initialising without remote backend (plan only)"
+            terraform init -backend=false
+          fi
       - name: Terraform plan
         run: terraform plan -out=tfplan
       - name: Upload plan artifact
@@ -141,7 +149,15 @@ jobs:
           test -n "$TF_VAR_student_id" || (echo "Missing repository secret: STUDENT_ID" && exit 1)
           test -n "$TF_VAR_gcp_sa_key_json" || (echo "Missing repository secret: GCP_SA_KEY" && exit 1)
       - name: Terraform init
-        run: terraform init -backend=false
+        env:
+          GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
+        run: |
+          if [ -n "$GCS_BUCKET" ]; then
+            terraform init -backend-config="bucket=$GCS_BUCKET" -backend-config="prefix=terraform/state"
+          else
+            echo "GCS_BUCKET not set – initialising without remote backend"
+            terraform init -backend=false
+          fi
       - name: Terraform apply with zone fallback
         shell: bash
         run: |
@@ -163,9 +179,9 @@ jobs:
             echo "Trying apply in zone: $z"
             export TF_VAR_zone="$z"
 
-            # CI uses local state (-backend=false). If VM already exists in GCP, skip duplicate create.
+            # If VM already exists in GCP (e.g. no remote state), skip to avoid duplicate create.
             if gcloud compute instances describe "${TF_VAR_student_id}-lab1-vm" --zone "$z" --project "$TF_VAR_project_id" >/dev/null 2>&1; then
-              echo "VM already exists in zone $z. Skipping apply (no remote state configured in CI)."
+              echo "VM already exists in zone $z. Skipping apply."
               exit 0
             fi
 

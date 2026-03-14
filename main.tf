@@ -63,6 +63,12 @@ resource "google_compute_instance" "vm" {
 
   metadata_startup_script = file("${path.module}/startup.sh")
 
+  shielded_instance_config {
+    enable_secure_boot          = true
+    enable_vtpm                 = true
+    enable_integrity_monitoring = true
+  }
+
   labels = {
     student = var.student_id
     course  = "devsecops-2026"
