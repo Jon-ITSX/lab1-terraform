@@ -113,7 +113,8 @@ terraform init \
 
 GCS-bucketen måste skapas manuellt innan första `terraform init`. Bucketen bör ha versionshantering aktiverat för extra säkerhet.
 
-> **Notering:** Koden för remote state är fullt implementerad (`backend.tf`, pipeline-stöd). Bucket-skapande blockerades av att service account-et i den delade GCP-miljön saknar `storage.buckets.create`-behörighet. Detta är en miljöbegränsning, inte ett kunskapsgap — `terraform plan` och `terraform apply` hoppar över gracefully och skriver ut en tydlig informationstext när `GCS_BUCKET`-hemligheten saknas.
+> **Notering:** Koden för remote state är fullt implementerad (`backend.tf`, pipeline-stöd). Bucket-skapande blockerades av att service account-et i den delade GCP-miljön saknar `storage.buckets.create`-behörighet. 
+Detta är en miljöbegränsning. — `terraform plan` och `terraform apply` hoppar över gracefully och skriver ut en tydlig informationstext när `GCS_BUCKET`-hemligheten saknas.
 
 ---
 
