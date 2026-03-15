@@ -1,3 +1,24 @@
+# =============================================================================
+# TERRAFORM CI PIPELINE
+#
+# Job chain:  lint ──┐
+#             security ──┼── plan ── apply (main only)
+#             validate ──┘
+#
+# Triggers:
+#   - pull_request → main : runs lint, security, validate, plan (no apply)
+#   - push → main         : runs full chain including apply
+#   - workflow_dispatch   : manual full-chain run (useful for re-applying)
+#
+# Security design:
+#   - permissions: contents: read  — no write access needed
+#   - concurrency lock prevents two applies running in parallel on the same ref,
+#     which could corrupt state. cancel-in-progress: false ensures a running
+#     apply is never interrupted mid-execution.
+#   - Secrets are injected as TF_VAR_* env vars so they never appear as plain
+#     CLI arguments in the runner logs.
+# =============================================================================
+
 name: Terraform CI
 
 on:
@@ -10,12 +31,16 @@ on:
 permissions:
   contents: read
 
+# Prevent concurrent applies on the same branch/ref.
+# cancel-in-progress: false protects a running apply from being interrupted.
 concurrency:
   group: terraform-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   TF_IN_AUTOMATION: true
+  # Terraform variables injected from GitHub Secrets.
+  # TF_VAR_* prefix is the standard Terraform mechanism for env-based variables.
   TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
   TF_VAR_student_id: ${{ secrets.STUDENT_ID }}
   TF_VAR_region: ${{ secrets.GCP_REGION }}
@@ -24,6 +49,11 @@ env:
   TF_VAR_gcp_sa_key_json: ${{ secrets.GCP_SA_KEY }}
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # LINT — enforces consistent code formatting.
+  # `terraform fmt -check` exits non-zero if any file is not canonical format.
+  # Keeps the codebase readable and prevents style-related review noise.
+  # ---------------------------------------------------------------------------
   lint:
     name: Lint (fmt)
     runs-on: ubuntu-latest
@@ -35,6 +65,15 @@ jobs:
       - name: Terraform fmt check
         run: terraform fmt -check -recursive
 
+  # ---------------------------------------------------------------------------
+  # SECURITY — IaC vulnerability scan with Trivy.
+  # Two-pass approach:
+  #   Pass 1: full report (CRITICAL/HIGH/MEDIUM/LOW) uploaded as artifact
+  #           for review regardless of outcome (if: always()).
+  #   Pass 2: CRITICAL-only gate with exit-code 1 to block the pipeline.
+  # This means HIGH/MEDIUM/LOW findings are visible but non-blocking,
+  # while CRITICAL findings stop all downstream jobs (plan, apply).
+  # ---------------------------------------------------------------------------
   security:
     name: Security Scan (Trivy)
     runs-on: ubuntu-latest
@@ -47,14 +86,21 @@ jobs:
       - name: Generate Trivy IaC report
         run: trivy config --severity CRITICAL,HIGH,MEDIUM,LOW --format table --output trivy-report.txt .
       - name: Upload Trivy report artifact
+        # Upload even on failure so the report is always available for review.
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-report-${{ github.run_id }}
           path: ./trivy-report.txt
       - name: Enforce CRITICAL gate
+        # exit-code 1 makes the step (and therefore the job) fail on CRITICAL findings.
         run: trivy config --severity CRITICAL --exit-code 1 .
 
+  # ---------------------------------------------------------------------------
+  # VALIDATE — checks that the Terraform configuration is syntactically correct
+  # and internally consistent (variable references, resource types, etc.).
+  # Uses -backend=false to skip remote state connection — no GCP auth needed.
+  # ---------------------------------------------------------------------------
   validate:
     name: Validate
     runs-on: ubuntu-latest
@@ -68,6 +114,14 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
+  # ---------------------------------------------------------------------------
+  # PLAN — shows what Terraform would change without applying anything.
+  # Runs on all triggers (PR, push to main, manual) but only after all three
+  # quality gates above pass. The plan artifact is uploaded for review.
+  #
+  # GCS fallback: if GCS_BUCKET secret is not set, plan is skipped gracefully.
+  # Lint, security, and validate still provide full code quality coverage.
+  # ---------------------------------------------------------------------------
   plan:
     name: Plan
     runs-on: ubuntu-latest
@@ -93,11 +147,15 @@ jobs:
           if [ -z "$TF_VAR_machine_type" ]; then
             echo "TF_VAR_machine_type=e2-micro" >> "$GITHUB_ENV"
           fi
+      # Fail fast if mandatory secrets are missing rather than letting
+      # Terraform fail later with a cryptic authentication error.
       - name: Verify required CI secrets
         run: |
           test -n "$TF_VAR_project_id" || (echo "Missing repository secret: GCP_PROJECT_ID" && exit 1)
           test -n "$TF_VAR_student_id" || (echo "Missing repository secret: STUDENT_ID" && exit 1)
           test -n "$TF_VAR_gcp_sa_key_json" || (echo "Missing repository secret: GCP_SA_KEY" && exit 1)
+      # GCS fallback: if GCS_BUCKET is not set, plan is skipped gracefully.
+      # Lint, security, and validate still provide full code quality coverage.
       - name: Terraform init and plan
         env:
           GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
@@ -118,6 +176,12 @@ jobs:
           name: tfplan-${{ github.run_id }}
           path: tfplan
 
+  # ---------------------------------------------------------------------------
+  # APPLY — provisions or updates infrastructure in GCP.
+  # Only runs on push to main or manual trigger (not on PRs) to prevent
+  # feature branches from accidentally modifying production infrastructure.
+  # Requires the production GitHub Environment for optional review gates.
+  # ---------------------------------------------------------------------------
   apply:
     name: Apply
     runs-on: ubuntu-latest
@@ -145,11 +209,15 @@ jobs:
           if [ -z "$TF_VAR_machine_type" ]; then
             echo "TF_VAR_machine_type=e2-micro" >> "$GITHUB_ENV"
           fi
+      # Fail fast if mandatory secrets are missing rather than letting
+      # Terraform fail later with a cryptic authentication error.
       - name: Verify required CI secrets
         run: |
           test -n "$TF_VAR_project_id" || (echo "Missing repository secret: GCP_PROJECT_ID" && exit 1)
           test -n "$TF_VAR_student_id" || (echo "Missing repository secret: STUDENT_ID" && exit 1)
           test -n "$TF_VAR_gcp_sa_key_json" || (echo "Missing repository secret: GCP_SA_KEY" && exit 1)
+      # GCS fallback: skip apply entirely if no bucket is configured.
+      # Apply without remote state risks creating duplicate resources.
       - name: Terraform init
         env:
           GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
@@ -161,6 +229,24 @@ jobs:
             exit 0
           fi
       - name: Terraform apply with zone fallback
+        # ---------------------------------------------------------------------
+        # Solution to problem 1 — GCP zone capacity limits
+        # e2-micro instances sometimes fail with "does not have enough resources
+        # available" in a specific zone. The shared GCP project means many
+        # students compete for the same limited zone capacity.
+        # SOLUTION: Try the preferred zone first, then fall back through all
+        # three zones (a, b, c) in the region. Deduplication ensures the
+        # preferred zone is not tried twice if it is already a/b/c.
+        #----------------------------------------------------------------------
+        # Solution to problem 2 — VM already exists without matching remote state
+        # Without remote state (GCS_BUCKET not configured), each CI run starts
+        # with an empty local state. If a VM was created in a previous run,
+        # Terraform would try to create it again → duplicate resource error.
+        # SOLUTION: Before every apply, check via gcloud whether the VM already
+        # exists in GCP. If it does, skip the apply and exit 0 (success) so the
+        # pipeline stays green. This is a temporary guardrail until remote state
+        # is in place — with proper GCS state the check becomes redundant.
+        # ---------------------------------------------------------------------
         if: env.GCS_BUCKET != ''
         env:
           GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
@@ -184,7 +270,8 @@ jobs:
             echo "Trying apply in zone: $z"
             export TF_VAR_zone="$z"
 
-            # If VM already exists in GCP (e.g. no remote state), skip to avoid duplicate create.
+            # Guard: if VM already exists in GCP but is absent from state,
+            # skip apply to prevent a duplicate-resource error.
             if gcloud compute instances describe "${TF_VAR_student_id}-lab1-vm" --zone "$z" --project "$TF_VAR_project_id" >/dev/null 2>&1; then
               echo "VM already exists in zone $z. Skipping apply."
               exit 0
@@ -200,11 +287,13 @@ jobs:
               exit 0
             fi
 
+            # Capacity error → retry in next zone.
             if grep -qi "does not have enough resources available" apply.log; then
               echo "Capacity issue in zone $z. Trying next zone..."
               continue
             fi
 
+            # Resource already exists error (race condition) → treat as success.
             if grep -qi "already exists" apply.log; then
               echo "Resource already exists in zone $z without matching state. Skipping apply."
               exit 0

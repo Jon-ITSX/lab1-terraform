@@ -1,3 +1,8 @@
+# =============================================================================
+# OUTPUTS
+# Printed after terraform apply. Useful for SSH, verification, and scripts.
+# =============================================================================
+
 output "vm_name" {
   value = google_compute_instance.vm.name
 }

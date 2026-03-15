@@ -1,13 +1,30 @@
+# =============================================================================
+# TERRAFORM DESTROY WORKFLOW
+# Tears down all GCP resources managed by this Terraform configuration.
+#
+# Safety design:
+#   - Manual trigger only (workflow_dispatch) — cannot be triggered by a push
+#     or PR, so no accidental destruction is possible.
+#   - Confirmation gate: the user must type "DESTROY" exactly. The job is
+#     skipped entirely if the input does not match, providing a second layer
+#     of protection against accidental runs.
+#   - Production environment gate: requires the GitHub Environment "production"
+#     which can be configured with required reviewers for extra safety.
+# =============================================================================
+
 name: Terraform Destroy
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
+        # Intentional human-friction: forces the operator to type a specific
+        # string rather than clicking a single button.
         description: "Type DESTROY to confirm destruction of all resources"
         required: true
         type: string
 
+# Read-only repository access is sufficient — no code is pushed back.
 permissions:
   contents: read
 
@@ -24,9 +41,12 @@ jobs:
   destroy:
     name: Destroy
     runs-on: ubuntu-latest
+    # Second confirmation check — job is skipped entirely if input is wrong.
     if: github.event.inputs.confirm == 'DESTROY'
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    # Ties the job to the GitHub Environment "production", enabling optional
+    # required-reviewer protection in the repository settings.
     environment:
       name: production
     steps:
@@ -40,6 +60,8 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
 
       - name: Set region/zone/machine fallback
+        # Mirrors the fallback logic in terraform.yml to ensure destroy uses
+        # the same variable values as the original apply, avoiding zone mismatches.
         run: |
           if [ -z "$TF_VAR_region" ]; then
             echo "TF_VAR_region=europe-north1" >> "$GITHUB_ENV"
@@ -51,12 +73,18 @@ jobs:
             echo "TF_VAR_machine_type=e2-micro" >> "$GITHUB_ENV"
           fi
 
+      # Fail fast if mandatory secrets are missing rather than letting
+      # Terraform fail later with a cryptic authentication error.
       - name: Verify required CI secrets
         run: |
           test -n "$TF_VAR_project_id"      || (echo "Missing secret: GCP_PROJECT_ID" && exit 1)
           test -n "$TF_VAR_student_id"      || (echo "Missing secret: STUDENT_ID" && exit 1)
           test -n "$TF_VAR_gcp_sa_key_json" || (echo "Missing secret: GCP_SA_KEY" && exit 1)
 
+      # With remote state: Terraform reads the real state from GCS and knows
+      # exactly which resources to destroy.
+      # Without remote state: falls back to local (empty) state — destroy will
+      # still run but may find nothing to delete if state is out of sync with GCP.
       - name: Terraform init
         env:
           GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
