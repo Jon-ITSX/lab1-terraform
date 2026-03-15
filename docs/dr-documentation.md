@@ -2,7 +2,7 @@
 
 ## Scope
 
-Dokumentet beskriver återhämtningsstrategin för Linux-VM:en och tillhörande infrastruktur som skapas i Lab 1 (GCP, region `europe-north1`).
+Dokumentet beskriver recoverystrategin för Linux-VM:en och tillhörande infrastruktur som skapas i Lab 1 (GCP, region `europe-north1`).
 
 ---
 
@@ -12,12 +12,12 @@ Dokumentet beskriver återhämtningsstrategin för Linux-VM:en och tillhörande 
 
 Dagliga disk-snapshots körs kl. 03:00 UTC och behålls i 7 dagar. I värsta fall går maximalt en dags data förlorad.
 
-| Parameter | Värde |
-|-----------|-------|
-| Schema | Dagligen (1 gång/dygn) |
-| Starttid | 03:00 UTC |
-| Retention | 7 dagar |
-| Policy vid diskradering | `KEEP_AUTO_SNAPSHOTS` |
+| Parameter               | Värde                  |
+|-------------------------|------------------------|
+| Schema                  | Dagligen (1 gång/dygn) |
+| Starttid                | 03:00 UTC              |
+| Retention               | 7 dagar                |
+| Policy vid diskradering | `KEEP_AUTO_SNAPSHOTS`  |
 
 Terraform-resurs: `google_compute_resource_policy.daily_snapshot_policy`
 
@@ -27,13 +27,13 @@ Terraform-resurs: `google_compute_resource_policy.daily_snapshot_policy`
 
 **Mål: ≤ 30 minuter**
 
-| Steg | Uppskattad tid |
-|------|---------------|
-| Identifiera senaste snapshot | ~2 min |
-| Skapa disk från snapshot (GCP) | ~5 min |
-| `terraform apply` för ny VM | ~10 min |
-| Verifiera VM och SSH-åtkomst | ~5 min |
-| **Total** | **~22 min** |
+| Steg                           | Uppskattad tid |
+|--------------------------------|----------------|
+| Identifiera senaste snapshot   | ~2 min         |
+| Skapa disk från snapshot (GCP) | ~5 min         |
+| `terraform apply` för ny VM    | ~10 min        |
+| Verifiera VM och SSH-åtkomst   | ~5 min         |
+| **Total**                      | **~22 min**    |
 
 ---
 
@@ -111,19 +111,19 @@ gcloud compute snapshots list \
 
 ## Begränsningar
 
-| Begränsning | Kommentar |
-|-------------|-----------|
-| Regionsfel | Täcks ej – kräver multi-region strategi |
-| GCS-bucket nere | Remote state otillgängligt → använd Alternativ 2 |
-| Applikationsdata | Lagras på boot-disken, täcks av snapshot-strategin |
+| Begränsning       | Kommentar                                          |
+|-------------------|----------------------------------------------------|
+| Regionsfel        | Täcks ej – kräver multi-region strategi            |
+| GCS-bucket nere   | Remote state otillgängligt → använd Alternativ 2   |
+| Applikationsdata  | Lagras på boot-disken, täcks av snapshot-strategin |
 
 ---
 
 ## Testplan
 
-| Frekvens | Åtgärd |
-|----------|--------|
-| Varje vecka | Verifiera att senaste snapshot är < 24 h gammal |
-| Kvartalsvis | Testa full restore till en separat testinstans |
-| Vid DR-test | Mät faktisk RTO och jämför mot mål (≤ 30 min) |
-| Vid avvikelse | Uppdatera detta dokument med ny bedömning |
+| Frekvens      | Åtgärd                                          |
+|---------------|-------------------------------------------------|
+| Varje vecka   | Verifiera att senaste snapshot är < 24 h gammal |
+| Kvartalsvis   | Testa full restore till en separat testinstans  |
+| Vid DR-test   | Mät faktisk RTO och jämför mot mål (≤ 30 min)   |
+| Vid avvikelse | Uppdatera detta dokument med ny bedömning       |

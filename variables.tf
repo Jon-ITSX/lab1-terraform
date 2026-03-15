@@ -1,3 +1,11 @@
+# =============================================================================
+# VARIABLES
+# Required variables have no default and must be set in terraform.tfvars
+# or passed via -var flags / environment variables in CI.
+# =============================================================================
+
+# --- GCP Connection ---
+
 variable "project_id" {
   description = "GCP Project ID"
   type        = string
@@ -15,6 +23,8 @@ variable "zone" {
   default     = "europe-north1-b"
 }
 
+# --- VM Configuration ---
+
 variable "machine_type" {
   description = "Machine type for the VM. Default keeps educator baseline."
   type        = string
@@ -25,6 +35,8 @@ variable "student_id" {
   description = "Your student identifier"
   type        = string
 }
+
+# --- Backup Configuration ---
 
 variable "snapshot_start_time_utc" {
   description = "Daily snapshot start time in UTC, format HH:MM."
@@ -37,6 +49,8 @@ variable "snapshot_retention_days" {
   type        = number
   default     = 7
 }
+
+# --- Authentication ---
 
 variable "gcp_sa_key_json" {
   description = "Service account key JSON content for Terraform provider authentication."
