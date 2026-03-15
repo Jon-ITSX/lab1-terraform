@@ -2,9 +2,9 @@
 
 Detta dokument beskriver varför projektet är konfigurerat som det är.
 
-## 1) Branch protection för `main`
+## 1) GitHub Branch protection för `main`
 
-Rekommenderad konfiguration:
+Konfiguration:
 
 [X] Require pull request before merge
 [ ] Require at least 1 approval - Ej satt eftersom jag är ensam i projektet i nuläget.
@@ -12,6 +12,8 @@ Rekommenderad konfiguration:
 [X] Require branch to be up to date before merge
 [X] Block force pushes
 [X] Block deletions
+[x] Require code scanning results to pass
+
 
 ## 2) Secrets (minimerad exponering)
 
@@ -20,6 +22,7 @@ I `Settings -> Secrets and variables -> Actions` används följande **secrets**:
 - `GCP_SA_KEY` (JSON för delad service account)
 - `GCP_PROJECT_ID`
 - `STUDENT_ID`
+- `GCS_BUCKET` (valfri — krävs för remote state och apply)
 - `GCP_REGION` (valfri)
 - `GCP_ZONE` (valfri)
 - `GCP_MACHINE_TYPE` (valfri)
@@ -102,7 +105,7 @@ Motivering:
 
 ## 9) Backupstrategi: skillnad mot den ursprungliga minimalkoden
 
-Orginalkoden är en enkel och pedagogisk baseline som jag tolkar som ett exempel.
+Originalkoden är en enkel och pedagogisk baseline som jag tolkar som ett exempel.
 
 Nuvarande implementation gör samma sak (daglig snapshot policy + retention), men med tydligare resurshantering:
 
@@ -118,9 +121,7 @@ Motivering:
 - Enklare att justera utan att ändra resurslogik.
 - Fortfarande i linje med kravet: backupstrategi via snapshot policy i Terraform.
 
+## 10) Guardrail: VM redan skapad utan matchande state
 
-
-
-
-Tillägg: I CI-apply finns en guardrail som avbryter kontrollerat om VM redan finns (lready exists) eftersom state i nuläget körs utan remote backend. Detta är en temporär skyddsåtgärd tills remote state (GCS) är fullt infört.
+I CI-apply finns en kontroll som avbryter gracefully om VM redan finns i GCP ("already exists") men saknas i state. Detta är en temporär skyddsåtgärd tills remote state (GCS) är fullt infört — med GCS-backend blir kontrollen redundant eftersom state alltid speglar verkligheten.
 
