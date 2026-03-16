@@ -20,14 +20,14 @@ Konfiguration:
 I `Settings -> Secrets and variables -> Actions` används följande **secrets**:
 
 - `GCP_SA_KEY` (JSON för delad service account)
-- `GCP_PROJECT_ID`
-- `STUDENT_ID`
-- `GCS_BUCKET` (valfri — krävs för remote state och apply)
-- `GCP_REGION` (valfri)
-- `GCP_ZONE` (valfri)
-- `GCP_MACHINE_TYPE` (valfri)
+- `GCP_PROJECT_ID` (obligatorisk - GCP-projekt-ID)
+- `STUDENT_ID` (obligatorisk - Studentidentifierare)
+- `GCS_BUCKET` (obligatorisk — GCS-bucket för remote state)
+- `GCP_REGION` (valfri - standardvärde: `europe-north1`)
+- `GCP_ZONE` (valfri - standardvärde: `europe-north1-b`)
+- `GCP_MACHINE_TYPE` (valfri - standardvärde: `e2-micro`)
 
-Jag valde att använda secrets i stället för variables för att minska synlighet av metadata i repository-inställningarna och loggar.
+Jag valde att använda secrets på GitHub i stället för variables för att minska synlighet av metadata i repository-inställningarna och loggar.
 
 ## 3) CI-strategi
 
@@ -123,5 +123,5 @@ Motivering:
 
 ## 10) Guardrail: VM redan skapad utan matchande state
 
-I CI-apply finns en kontroll som avbryter gracefully om VM redan finns i GCP ("already exists") men saknas i state. Detta är en temporär skyddsåtgärd tills remote state (GCS) är fullt infört — med GCS-backend blir kontrollen redundant eftersom state alltid speglar verkligheten.
+I CI-apply finns en kontroll som avbryter gracefully om VM redan finns i GCP ("already exists") men saknas i state. Med GCS-backend aktiv speglar state alltid verkligheten och kontrollen behövs sällan — den är behållen som extra skyddsnät.
 
