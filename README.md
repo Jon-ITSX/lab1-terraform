@@ -105,6 +105,9 @@ Terraform-state lagras i en delad GCS-bucket för att möjliggöra samarbete och
 
 Bucket och prefix konfigureras i `backend.tf`. Kör `terraform init` för att initiera backend.
 
+> **Notering:** Koden för remote state är fullt implementerad (`backend.tf`, pipeline-stöd). Bucket-skapande blockerades av att service account-et i den delade GCP-miljön saknar `storage.buckets.create`-behörighet. 
+Detta är en miljöbegränsning. — `terraform plan` och `terraform apply` hoppar över gracefully och skriver ut en tydlig informationstext när `GCS_BUCKET`-hemligheten saknas.
+
 ---
 
 ## Backup-strategi
