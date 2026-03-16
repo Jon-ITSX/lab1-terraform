@@ -12,7 +12,7 @@ Konfiguration:
 [X] Require branch to be up to date before merge
 [X] Block force pushes
 [X] Block deletions
-[x] Require code scanning results to pass
+[ ] Require code scanning results to pass - Ej aktiverat. CodeQL är primärt för applikationskod. IaC-säkerhetsskanning hanteras av Trivy i CI-pipelinen.
 
 
 ## 2) Secrets (minimerad exponering)
