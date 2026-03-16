@@ -1,13 +1,13 @@
 # =============================================================================
-# REMOTE STATE BACKEND — GCS
-# Stores terraform.tfstate in a GCS bucket for shared, persistent state.
-# Bucket name and prefix are passed at runtime via -backend-config flags
-# in the CI pipeline (see .github/workflows/terraform.yml).
+# REMOTE STATE BACKEND — GCS (partial configuration)
+# Bucket and prefix are injected at runtime via -backend-config flags so that
+# sensitive bucket names are kept out of the repository.
 #
-# Initialise locally:
+# CI (GitHub Actions): bucket and prefix come from the GCS_BUCKET secret.
+# Local init:
 #   terraform init \
-#     -backend-config="bucket=BUCKET-NAME" \
-#     -backend-config="prefix=terraform/state"
+#     -backend-config="bucket=$GCS_BUCKET" \
+#     -backend-config="prefix=lab1/jon-eskilsson"
 # =============================================================================
 
 terraform {

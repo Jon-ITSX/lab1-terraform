@@ -8,7 +8,7 @@ Terraform-kod som skapar en härdad Linux-VM i GCP med säkerhetskontroller i Gi
 - Startup-script med CIS Ubuntu 22.04 Level 1-härdning
 - Shielded VM (Secure Boot, vTPM, Integrity Monitoring)
 - Daglig snapshot-policy med 7 dagars retention (backup-strategi)
-- Remote state i GCS *(väntar på bucket-provisionering)*
+- Remote state i GCS (bucket konfigurerad via `GCS_BUCKET` secret)
 - Trivy IaC-scan med blockerande `CRITICAL`-gate
 - Terraform `fmt`, `validate`, `plan`, `apply` i CI
 - Auto-destroy workflow (manuell trigger)
@@ -76,7 +76,9 @@ student_id   = "your-name"
 ## Körning lokalt
 
 ```bash
-terraform init -backend-config="bucket=DIN-GCS-BUCKET" -backend-config="prefix=terraform/state"
+terraform init \
+  -backend-config="bucket=$GCS_BUCKET" \
+  -backend-config="prefix=lab1/jon-eskilsson"
 terraform fmt -recursive
 terraform validate
 terraform plan
@@ -92,7 +94,7 @@ terraform apply
 | `GCP_SA_KEY`        | Ja           | Service account-nyckel (JSON)                  |
 | `GCP_PROJECT_ID`    | Ja           | GCP-projekt-ID                                 |
 | `STUDENT_ID`        | Ja           | Studentidentifierare                           |
-| `GCS_BUCKET`        | Nej          | GCS-bucket för remote state (krävs för apply)  |
+| `GCS_BUCKET`        | Ja           | GCS-bucket för remote state                                  |
 | `GCP_REGION`        | Ja           | Standardvärde: `europe-north1`                 |
 | `GCP_ZONE`          | Nej          | Standardvärde: `europe-north1-b`               |
 | `GCP_MACHINE_TYPE`  | Nej          | Standardvärde: `e2-micro`                      |
@@ -101,17 +103,9 @@ terraform apply
 
 ## Remote State (GCS)
 
-Terraform-state lagras i en GCS-bucket för att möjliggöra samarbete och säker återhämtning.
+Terraform-state lagras i en delad GCS-bucket för att möjliggöra samarbete och säker återhämtning.
 
-Konfigurationen i `backend.tf` använder partial configuration — bucket skickas som argument vid `init`:
-
-```bash
-terraform init \
-  -backend-config="bucket=DIN-GCS-BUCKET" \
-  -backend-config="prefix=terraform/state"
-```
-
-GCS-bucketen måste skapas manuellt innan första `terraform init`. Bucketen bör ha versionshantering aktiverat för extra säkerhet.
+Bucket och prefix konfigureras i `backend.tf`. Kör `terraform init` för att initiera backend.
 
 > **Notering:** Koden för remote state är fullt implementerad (`backend.tf`, pipeline-stöd). Bucket-skapande blockerades av att service account-et i den delade GCP-miljön saknar `storage.buckets.create`-behörighet. 
 Detta är en miljöbegränsning. — `terraform plan` och `terraform apply` hoppar över gracefully och skriver ut en tydlig informationstext när `GCS_BUCKET`-hemligheten saknas.
