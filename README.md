@@ -76,7 +76,9 @@ student_id   = "your-name"
 ## Körning lokalt
 
 ```bash
-terraform init
+terraform init \
+  -backend-config="bucket=$GCS_BUCKET" \
+  -backend-config="prefix=lab1/jon-eskilsson"
 terraform fmt -recursive
 terraform validate
 terraform plan

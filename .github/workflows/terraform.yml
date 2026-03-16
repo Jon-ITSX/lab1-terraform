@@ -161,7 +161,7 @@ jobs:
           GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
         run: |
           if [ -n "$GCS_BUCKET" ]; then
-            terraform init -backend-config="bucket=$GCS_BUCKET" -backend-config="prefix=terraform/state"
+            terraform init -backend-config="bucket=$GCS_BUCKET" -backend-config="prefix=lab1/jon-eskilsson"
             terraform plan -out=tfplan
           else
             echo "GCS_BUCKET not configured – skipping plan until remote backend is available."
@@ -223,7 +223,7 @@ jobs:
           GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
         run: |
           if [ -n "$GCS_BUCKET" ]; then
-            terraform init -backend-config="bucket=$GCS_BUCKET" -backend-config="prefix=terraform/state"
+            terraform init -backend-config="bucket=$GCS_BUCKET" -backend-config="prefix=lab1/jon-eskilsson"
           else
             echo "GCS_BUCKET not configured – skipping apply until remote backend is available."
             exit 0
