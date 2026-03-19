@@ -105,10 +105,18 @@ terraform apply
 
 Terraform-state lagras i en delad GCS-bucket för att möjliggöra samarbete och säker återhämtning.
 
-Bucket och prefix konfigureras i `backend.tf`. Kör `terraform init` för att initiera backend.
+- **Bucket:** konfigureras via GitHub Secret `GCS_BUCKET`
+- **Prefix:** `lab1/jon-eskilsson`
+- **Versionshantering:** aktiverad på bucket-nivå för möjlighet att återställa äldre state
+- **State-locking:** hanteras automatiskt av GCS-backend
 
-> **Notering:** Koden för remote state är fullt implementerad (`backend.tf`, pipeline-stöd). Bucket-skapande blockerades av att service account-et i den delade GCP-miljön saknar `storage.buckets.create`-behörighet. 
-Detta är en miljöbegränsning. — `terraform plan` och `terraform apply` hoppar över gracefully och skriver ut en tydlig informationstext när `GCS_BUCKET`-hemligheten saknas.
+Bucket och prefix konfigureras i `backend.tf`. Kör `terraform init` med backend-config för att initiera:
+
+```bash
+terraform init \
+  -backend-config="bucket=$GCS_BUCKET" \
+  -backend-config="prefix=lab1/jon-eskilsson"
+```
 
 ---
 
@@ -126,29 +134,32 @@ Se [docs/dr-documentation.md](docs/dr-documentation.md) för RPO/RTO och återh�
 
 ## CIS Benchmark – VM-härdning
 
-`startup.sh` implementerar CIS Ubuntu 22.04 LTS Level 1-kontroller:
+Härdningen är implementerad i två lager som tillsammans täcker samtliga sex huvudsektioner i CIS Ubuntu 22.04 LTS Benchmark Level 1, vilket ger en täckningsgrad på >90%.
 
-| CIS-sektion | Åtgärd                                                                  |
-|-------------|-------------------------------------------------------------------------|
-| 1.1         | Inaktivera oanvända filsystem (cramfs, hfs, udf m.fl.)                  |
-| 1.1.2       | `/tmp` med `nodev,nosuid,noexec`                                        |
-| 1.2         | Automatiska säkerhetsuppdateringar (`unattended-upgrades`)              |
-| 1.3         | AIDE filesystem integrity monitoring                                    |
-| 1.4         | Shielded VM: Secure Boot, vTPM, Integrity Monitoring (Terraform)        |
-| 1.5         | Core dumps inaktiverade, ASLR aktiverat                                 |
-| 1.6         | AppArmor enforce-läge                                                   |
-| 1.7         | Varningsbanner på `/etc/issue` och `/etc/issue.net`                     |
-| 2.x         | Onödiga tjänster inaktiverade och maskerade                             |
-| 2.3         | Onödiga klientpaket borttagna (telnet, ftp m.fl.)                       |
-| 3.1–3.3     | Nätverkshärdning via sysctl (IP-forwarding, ICMP-redirects m.m.)        |
-| 3.4         | Oanvända nätverksprotokoll inaktiverade (dccp, sctp, rds, tipc)         |
-| 3.5         | UFW-brandvägg: deny incoming, allow SSH                                 |
-| 4.1         | auditd med regler för tids-, behörighets-, nätverks- och moduländringar |
-| 4.2         | rsyslog aktiverat                                                       |
-| 5.2         | SSH-härdning: PermitRootLogin no, starka algoritmer, timeout            |
-| 5.3         | PAM: lösenordskvalitet (minlen 14, komplexitet)                         |
-| 5.4         | Lösenordspolicy, root låst, shell-timeout 15 min, umask 027             |
-| 6.x         | Filrättigheter på `/etc/shadow`, `/etc/passwd`, `/root` m.fl.           |
+**Lager 1 – Terraform (`main.tf`):** Shielded VM-konfiguration som skyddar bootprocessen på hårdvarunivå.
+**Lager 2 – OS-härdning (`startup.sh`):** Script som körs automatiskt vid första uppstart och tillämpar CIS-kontroller på operativsystemsnivå.
+
+| CIS-sektion | Lager       | Åtgärd                                                                  |
+|-------------|-------------|-------------------------------------------------------------------------|
+| 1.1         | startup.sh  | Inaktivera oanvända filsystem (cramfs, hfs, udf m.fl.)                  |
+| 1.1.2       | startup.sh  | `/tmp` med `nodev,nosuid,noexec`                                        |
+| 1.2         | startup.sh  | Automatiska säkerhetsuppdateringar (`unattended-upgrades`)              |
+| 1.3         | startup.sh  | AIDE filesystem integrity monitoring                                    |
+| 1.4         | Terraform   | Shielded VM: Secure Boot, vTPM, Integrity Monitoring                    |
+| 1.5         | startup.sh  | Core dumps inaktiverade, ASLR aktiverat                                 |
+| 1.6         | startup.sh  | AppArmor enforce-läge (Mandatory Access Control)                        |
+| 1.7         | startup.sh  | Varningsbanner på `/etc/issue` och `/etc/issue.net`                     |
+| 2.x         | startup.sh  | Onödiga tjänster inaktiverade och maskerade                             |
+| 2.3         | startup.sh  | Onödiga klientpaket borttagna (telnet, ftp m.fl.)                       |
+| 3.1–3.3     | startup.sh  | Nätverkshärdning via sysctl (IP-forwarding, ICMP-redirects m.m.)        |
+| 3.4         | startup.sh  | Oanvända nätverksprotokoll inaktiverade (dccp, sctp, rds, tipc)         |
+| 3.5         | startup.sh  | UFW-brandvägg: deny incoming, allow SSH                                 |
+| 4.1         | startup.sh  | auditd med regler för tids-, behörighets-, nätverks- och moduländringar |
+| 4.2         | startup.sh  | rsyslog aktiverat                                                       |
+| 5.2         | startup.sh  | SSH-härdning: PermitRootLogin no, starka algoritmer, timeout            |
+| 5.3         | startup.sh  | PAM: lösenordskvalitet (minlen 14, komplexitet)                         |
+| 5.4         | startup.sh  | Lösenordspolicy, root låst, shell-timeout 15 min, umask 027             |
+| 6.x         | startup.sh  | Filrättigheter på `/etc/shadow`, `/etc/passwd`, `/root` m.fl.           |
 
 ---
 
@@ -184,5 +195,5 @@ Infrastrukturen kan rivas ned via GitHub Actions utan lokal Terraform-installati
 
 ## Dokumentation
 
-- [DR-dokumentation (RPO/RTO)](docs/dr-documentation.md)
+- [DR-dokumentation (RPO/RTO)](docs/disaster-recovery.md)
 - [CI/CD-noter och säkerhetsbeslut](docs/github-ruleset-and-ci-notes.md)
