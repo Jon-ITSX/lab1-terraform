@@ -27,7 +27,8 @@ apt-get install -y \
   apparmor-utils \
   libpam-pwquality \
   chrony \
-  acl
+  acl \
+  lynis
 
 # Automatic security updates
 cat > /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
@@ -291,6 +292,7 @@ IgnoreRhosts yes
 HostbasedAuthentication no
 PermitRootLogin no
 PermitEmptyPasswords no
+PasswordAuthentication no
 PermitUserEnvironment no
 Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
 MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
