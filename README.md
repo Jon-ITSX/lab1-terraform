@@ -1,5 +1,7 @@
 # Lab 1 – Terraform + GCP
 
+![Terraform CI](https://github.com/Jon-ITSX/lab1-terraform/actions/workflows/terraform.yml/badge.svg)
+
 Terraform-kod som skapar en härdad Linux-VM i GCP med säkerhetskontroller i GitHub Actions.
 
 ## Vad projektet skapar
